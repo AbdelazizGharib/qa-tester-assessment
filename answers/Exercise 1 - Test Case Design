@@ -1,0 +1,194 @@
+Happy Path
+TC-01: Send gift successfully with sufficient balance
+Category: Happy Path
+Priority: P0
+Preconditions:
+User is authenticated with valid Sanctum token
+User joined room 12345
+Wallet balance = 10000 coins
+Gift coin price = 500
+Room contains at least 10 viewers
+Unique valid idempotency_key
+Steps:
+Send POST request with valid room_id, gift_id, quantity=10, winners_count=5 and valid idempotency_key.
+Expected Result:
+Status = 200
+transaction_id generated
+coins_charged = 5000
+remaining_balance = 5000
+winners list contains 5 unique users
+gift.sent event broadcasted
+Wallet updated correctly in DB
+Why it matters: Verifies the complete successful business flow.
+TC-02: Send gift using minimum valid values
+Category: Happy Path
+Priority: P1
+Preconditions: Authenticated user, sufficient balance.
+Steps:
+Send request with quantity=1 and winners_count=1.
+Expected Result:
+Status = 200
+Transaction created successfully
+Correct coin deduction
+Why it matters: Validates lower boundary values.
+TC-03: Send gift when wallet balance exactly equals required amount
+Category: Happy Path
+Priority: P0
+Preconditions: Wallet balance equals gift cost exactly.
+Steps:
+Send gift request.
+Expected Result:
+Status = 200
+Transaction succeeds
+Remaining balance = 0
+Why it matters: Detects boundary calculation bugs.
+Field Validation
+TC-04: Send request without room_id
+Category: Validation
+Priority: P1
+Preconditions: Authenticated user.
+Steps: Remove room_id from request.
+Expected Result: Status = 422, validation error, no transaction created.
+Why it matters: Prevents orphan transactions.
+TC-05: Send request with non-existing room_id
+Category: Validation
+Priority: P1
+Steps: Use non-existing room_id.
+Expected Result: Status = 422 validation error.
+Why it matters: Prevents invalid room references.
+TC-06: Send request with quantity = 0
+Category: Validation
+Priority: P0
+Steps: Set quantity = 0.
+Expected Result: Status = 422 validation error.
+Why it matters: Prevents invalid wallet transactions.
+TC-07: Send request with quantity = 101
+Category: Validation
+Priority: P0
+Steps: Set quantity = 101.
+Expected Result: Status = 422 validation error.
+Why it matters: Verifies upper boundary protection.
+TC-08: Send request with winners_count greater than audience size
+Category: Validation
+Priority: P0
+Preconditions: Audience size = 3.
+Steps: Set winners_count = 5.
+Expected Result: Status = 422 validation error.
+Why it matters: Prevents impossible winner allocation.
+TC-09: Send request with invalid UUID format
+Category: Validation
+Priority: P1
+Steps: Use invalid idempotency_key.
+Expected Result: Status = 422 validation error.
+Why it matters: Protects idempotency mechanism.
+TC-10: Send request with string value in quantity field
+Category: Validation
+Priority: P1
+Steps: quantity = "test".
+Expected Result: Status = 422 validation error.
+Why it matters: Ensures strict type validation.
+Authentication & Authorization
+TC-11: Send request without bearer token
+Category: Authentication
+Priority: P0
+Steps: Send request without Authorization header.
+Expected Result: Status = 401 Unauthorized.
+Why it matters: Prevents unauthorized wallet operations.
+TC-12: Send request with invalid token
+Category: Authentication
+Priority: P0
+Steps: Send request using invalid token.
+Expected Result: Status = 401 Unauthorized.
+Why it matters: Prevents account abuse.
+TC-13: Send request with expired token
+Category: Authentication
+Priority: P0
+Steps: Use expired Sanctum token.
+Expected Result: Status = 401 Unauthorized.
+Why it matters: Verifies session security.
+TC-14: User attempts to send gift to room not joined
+Category: Authorization
+Priority: P0
+Steps: Send request to room user is not currently joined to.
+Expected Result: Status = 403 Forbidden.
+Why it matters: Prevents unauthorized actions.
+Concurrency / Race Conditions
+TC-15: Same user sends two gift requests simultaneously
+Category: Concurrency
+Priority: P0
+Expected Result: Only one request succeeds, balance remains correct.
+Why it matters: Prevents double spending.
+TC-16: Two parallel requests compete for same wallet balance
+Category: Concurrency
+Priority: P0
+Expected Result: One succeeds, one fails, no negative balance.
+Why it matters: Verifies wallet locking.
+TC-17: Wallet top-up webhook arrives during gift sending
+Category: Concurrency
+Priority: P0
+Expected Result: Final balance remains consistent.
+Why it matters: Detects synchronization issues.
+TC-18: Audience changes during winner selection
+Category: Concurrency
+Priority: P1
+Expected Result: Winners count remains correct and consistent.
+Why it matters: Detects race conditions in winner selection.
+Idempotency
+TC-19: Retry same request using same idempotency_key
+Category: Idempotency
+Priority: P0
+Expected Result: No duplicate charge or transaction.
+Why it matters: Prevents duplicate payments.
+TC-20: Same idempotency_key with modified request body
+Category: Idempotency
+Priority: P0
+Expected Result: Request rejected safely.
+Why it matters: Prevents replay abuse.
+Business Logic & Money
+TC-21: Insufficient wallet balance
+Category: Business Logic
+Priority: P0
+Expected Result: Request rejected, no deduction occurs.
+Why it matters: Prevents negative balances.
+TC-22: Sender appears in winners list
+Category: Business Logic
+Priority: P1
+Expected Result: Sender should not be selected.
+Why it matters: Prevents unfair rewards.
+TC-23: Duplicate winner selection
+Category: Business Logic
+Priority: P1
+Expected Result: No duplicate user IDs in winners list.
+Why it matters: Prevents incorrect reward distribution.
+TC-24: Gift cost calculation accuracy
+Category: Business Logic
+Priority: P0
+Expected Result: coins_charged equals quantity × gift.coin_price.
+Why it matters: Prevents financial calculation errors.
+Side Effects
+TC-25: Verify WebSocket event is broadcast after successful gift sending
+Category: Side Effects
+Priority: P1
+Expected Result: gift.sent event received by room viewers.
+Why it matters: Ensures real-time updates.
+TC-26: Verify database transaction rollback on internal failure
+Category: Side Effects
+Priority: P0
+Expected Result: No partial updates remain in database.
+Why it matters: Prevents inconsistent financial records.
+Negative / Security
+TC-27: Attempt SQL injection in room_id field
+Category: Security
+Priority: P1
+Expected Result: Request rejected safely.
+Why it matters: Protects backend from injection attacks.
+TC-28: Attempt JSON type manipulation
+Category: Security
+Priority: P1
+Expected Result: Validation error returned.
+Why it matters: Detects weak input validation.
+TC-29: Verify rate limit enforcement (30 requests/minute)
+Category: Security
+Priority: P0
+Expected Result: Excess requests return 429 Too Many Requests.
+Why it matters: Prevents abuse and excessive wallet operations.
