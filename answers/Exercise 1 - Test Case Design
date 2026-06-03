@@ -1,194 +1,476 @@
+Exercise 1 - Test Case Design
+
 Happy Path
-TC-01: Send gift successfully with sufficient balance
+
+TC-01: Send Gift Successfully with Valid Data
 Category: Happy Path
 Priority: P0
 Preconditions:
-User is authenticated with valid Sanctum token
-User joined room 12345
-Wallet balance = 10000 coins
-Gift coin price = 500
-Room contains at least 10 viewers
-Unique valid idempotency_key
+User is authenticated with a valid Sanctum token.
+User has joined room 12345.
+User wallet balance is 10,000 coins.
+Gift price is 500 coins.
+Room audience size is at least 5 users.
 Steps:
-Send POST request with valid room_id, gift_id, quantity=10, winners_count=5 and valid idempotency_key.
+Send POST request to /api/gifts/send.
+Use valid room_id, gift_id, quantity=10, winners_count=5, and a valid UUID v4 idempotency key.
 Expected Result:
-Status = 200
-transaction_id generated
-coins_charged = 5000
-remaining_balance = 5000
-winners list contains 5 unique users
-gift.sent event broadcasted
-Wallet updated correctly in DB
-Why it matters: Verifies the complete successful business flow.
-TC-02: Send gift using minimum valid values
+Response status code is 200.
+Response contains transaction_id.
+coins_charged equals expected amount.
+winners array contains 5 unique users.
+remaining_balance is correctly calculated.
+Wallet balance is deducted in database.
+gift.sent event is broadcast successfully.
+Why it matters:
+Verifies the complete successful transaction flow.
+
+TC-02: Send Gift Using Minimum Allowed Values
 Category: Happy Path
 Priority: P1
-Preconditions: Authenticated user, sufficient balance.
+Preconditions:
+User is authenticated.
+User has sufficient balance.
+Room contains at least one viewer.
 Steps:
-Send request with quantity=1 and winners_count=1.
+Send request with quantity=1.
+Set winners_count=1.
 Expected Result:
-Status = 200
-Transaction created successfully
-Correct coin deduction
-Why it matters: Validates lower boundary values.
-TC-03: Send gift when wallet balance exactly equals required amount
+Status code 200.
+Transaction created successfully.
+One winner is selected.
+Correct coin deduction occurs.
+Why it matters:
+Validates lower boundary values.
+
+TC-03: Wallet Balance Exactly Equals Required Cost
 Category: Happy Path
 Priority: P0
-Preconditions: Wallet balance equals gift cost exactly.
+Preconditions:
+Wallet balance equals quantity × gift.coin_price exactly.
 Steps:
-Send gift request.
+Submit valid gift request.
 Expected Result:
-Status = 200
-Transaction succeeds
-Remaining balance = 0
-Why it matters: Detects boundary calculation bugs.
-Field Validation
-TC-04: Send request without room_id
+Request succeeds.
+Remaining balance becomes 0.
+Transaction recorded successfully.
+Why it matters:
+Verifies balance boundary handling.
+Validation
+
+TC-04: Missing room_id
 Category: Validation
 Priority: P1
-Preconditions: Authenticated user.
-Steps: Remove room_id from request.
-Expected Result: Status = 422, validation error, no transaction created.
-Why it matters: Prevents orphan transactions.
-TC-05: Send request with non-existing room_id
+Preconditions:
+User authenticated.
+Steps:
+Remove room_id from request body.
+Submit request.
+Expected Result:
+Status code 422.
+Validation error returned for room_id.
+No transaction created.
+Why it matters:
+Ensures required fields are enforced.
+
+TC-05: Non-Existing room_id
 Category: Validation
 Priority: P1
-Steps: Use non-existing room_id.
-Expected Result: Status = 422 validation error.
-Why it matters: Prevents invalid room references.
-TC-06: Send request with quantity = 0
+Preconditions:
+User authenticated.
+Steps:
+Use room_id that does not exist.
+Submit request.
+Expected Result:
+Status code 422.
+Appropriate validation error returned.
+No database changes occur.
+Why it matters:
+Prevents transactions against invalid rooms.
+
+TC-06: quantity Below Minimum Value
 Category: Validation
 Priority: P0
-Steps: Set quantity = 0.
-Expected Result: Status = 422 validation error.
-Why it matters: Prevents invalid wallet transactions.
-TC-07: Send request with quantity = 101
+Preconditions:
+User authenticated.
+Steps:
+Set quantity = 0.
+Submit request.
+Expected Result:
+Status code 422.
+Validation error for quantity.
+No wallet deduction.
+Why it matters:
+Ensures quantity lower boundary is enforced.
+
+TC-07: quantity Above Maximum Value
 Category: Validation
 Priority: P0
-Steps: Set quantity = 101.
-Expected Result: Status = 422 validation error.
-Why it matters: Verifies upper boundary protection.
-TC-08: Send request with winners_count greater than audience size
+Preconditions:
+User authenticated.
+Steps:
+Set quantity = 101.
+Submit request.
+Expected Result:
+Status code 422.
+Validation error returned.
+Why it matters:
+Prevents oversized transactions.
+
+TC-08: winners_count Greater Than Room Audience Size
 Category: Validation
 Priority: P0
-Preconditions: Audience size = 3.
-Steps: Set winners_count = 5.
-Expected Result: Status = 422 validation error.
-Why it matters: Prevents impossible winner allocation.
-TC-09: Send request with invalid UUID format
+Preconditions:
+Room audience size = 3.
+Steps:
+Set winners_count = 5.
+Submit request.
+Expected Result:
+Status code 422.
+Validation error returned.
+No transaction recorded.
+Why it matters:
+Prevents impossible winner selection scenarios.
+
+TC-09: Invalid UUID Format for idempotency_key
 Category: Validation
 Priority: P1
-Steps: Use invalid idempotency_key.
-Expected Result: Status = 422 validation error.
-Why it matters: Protects idempotency mechanism.
-TC-10: Send request with string value in quantity field
+Preconditions:
+User authenticated.
+Steps:
+Use value "12345" as idempotency_key.
+Submit request.
+Expected Result:
+Status code 422.
+Validation error returned.
+Why it matters:
+Protects idempotency mechanism integrity.
+
+TC-10: Invalid Data Type for quantity
 Category: Validation
 Priority: P1
-Steps: quantity = "test".
-Expected Result: Status = 422 validation error.
-Why it matters: Ensures strict type validation.
+Preconditions:
+User authenticated.
+Steps:
+Set quantity = "abc".
+Submit request.
+Expected Result:
+Status code 422.
+Validation error returned.
+Why it matters:
+Ensures strict type validation.
 Authentication & Authorization
-TC-11: Send request without bearer token
+
+TC-11: Missing Bearer Token
 Category: Authentication
 Priority: P0
-Steps: Send request without Authorization header.
-Expected Result: Status = 401 Unauthorized.
-Why it matters: Prevents unauthorized wallet operations.
-TC-12: Send request with invalid token
+Preconditions:
+None.
+Steps:
+Send request without Authorization header.
+Expected Result:
+Status code 401.
+Request rejected.
+No transaction created.
+Why it matters:
+Prevents unauthorized access.
+
+TC-12: Invalid Bearer Token
 Category: Authentication
 Priority: P0
-Steps: Send request using invalid token.
-Expected Result: Status = 401 Unauthorized.
-Why it matters: Prevents account abuse.
-TC-13: Send request with expired token
+Preconditions:
+None.
+Steps:
+Use invalid token.
+Submit request.
+Expected Result:
+Status code 401.
+Authentication failure returned.
+Why it matters:
+Protects user wallets.
+
+TC-13: Expired Bearer Token
 Category: Authentication
 Priority: P0
-Steps: Use expired Sanctum token.
-Expected Result: Status = 401 Unauthorized.
-Why it matters: Verifies session security.
-TC-14: User attempts to send gift to room not joined
+Preconditions:
+Expired token exists.
+Steps:
+Submit request using expired token.
+Expected Result:
+Status code 401.
+Authentication error returned.
+Why it matters:
+Verifies token lifecycle management.
+
+TC-14: User Attempts to Send Gift Without Joining Room
 Category: Authorization
 Priority: P0
-Steps: Send request to room user is not currently joined to.
-Expected Result: Status = 403 Forbidden.
-Why it matters: Prevents unauthorized actions.
+Preconditions:
+User authenticated.
+User not joined to room.
+Steps:
+Submit request targeting room.
+Expected Result:
+Request rejected.
+Status code 403 or validation error according to implementation.
+No wallet deduction.
+Why it matters:
+Prevents unauthorized room interactions.
 Concurrency / Race Conditions
-TC-15: Same user sends two gift requests simultaneously
+
+TC-15: Same User Sends Two Gift Requests Simultaneously
 Category: Concurrency
 Priority: P0
-Expected Result: Only one request succeeds, balance remains correct.
-Why it matters: Prevents double spending.
-TC-16: Two parallel requests compete for same wallet balance
+Preconditions:
+User authenticated.
+Wallet balance = exactly enough for one transaction only.
+Example: balance = 5000 coins.
+Gift cost = 5000 coins.
+Steps:
+Send two identical requests at the exact same time using different threads/tools.
+Both requests use different idempotency keys.
+Expected Result:
+Only one request succeeds.
+The second request fails due to insufficient balance.
+Final balance is never negative.
+Only one transaction exists in database.
+Why it matters:
+Detects double-spending issues caused by race conditions.
+
+TC-16: Concurrent Requests from Two Devices Using Same Account
 Category: Concurrency
 Priority: P0
-Expected Result: One succeeds, one fails, no negative balance.
-Why it matters: Verifies wallet locking.
-TC-17: Wallet top-up webhook arrives during gift sending
+Preconditions:
+User logged in on two devices.
+Wallet balance supports only one transaction.
+Steps:
+Device A sends gift request.
+Device B sends gift request simultaneously.
+Expected Result:
+Database row lock prevents balance corruption.
+Wallet balance remains accurate.
+No duplicate coin deduction occurs.
+Why it matters:
+Verifies row-level locking on wallet records.
+
+TC-17: Wallet Top-Up Webhook Arrives During Gift Processing
 Category: Concurrency
 Priority: P0
-Expected Result: Final balance remains consistent.
-Why it matters: Detects synchronization issues.
-TC-18: Audience changes during winner selection
+Preconditions:
+User wallet balance is low.
+Payment provider webhook can add coins.
+Steps:
+Start gift transaction.
+During processing, trigger wallet top-up webhook.
+Expected Result:
+Final balance calculation remains correct.
+No lost update occurs.
+Transaction remains consistent.
+Why it matters:
+Detects synchronization issues between payments and spending.
+
+TC-18: Audience Changes During Winner Selection
 Category: Concurrency
 Priority: P1
-Expected Result: Winners count remains correct and consistent.
-Why it matters: Detects race conditions in winner selection.
+Preconditions:
+Room contains multiple viewers.
+Steps:
+Start gift request.
+Several viewers leave or join the room during execution.
+Expected Result:
+Winner selection remains valid.
+No duplicate winners returned.
+Winners count remains within expected limit.
+Why it matters:
+Detects race conditions in audience snapshot handling.
 Idempotency
-TC-19: Retry same request using same idempotency_key
+
+TC-19: Retry Same Request Using Same idempotency_key
 Category: Idempotency
 Priority: P0
-Expected Result: No duplicate charge or transaction.
-Why it matters: Prevents duplicate payments.
-TC-20: Same idempotency_key with modified request body
+Preconditions:
+Successful transaction already completed.
+Steps:
+Send valid request.
+Retry exactly the same request using the same idempotency_key.
+Expected Result:
+No new transaction is created.
+Wallet is not charged again.
+API returns original transaction result or appropriate duplicate response.
+Why it matters:
+Prevents duplicate charges caused by mobile network retries.
+
+TC-20: Reuse Same idempotency_key with Different Payload
 Category: Idempotency
 Priority: P0
-Expected Result: Request rejected safely.
-Why it matters: Prevents replay abuse.
+Preconditions:
+Previous request already used the idempotency key.
+Steps:
+Submit request with idempotency_key X.
+Submit another request with same key X but different quantity.
+Expected Result:
+Request rejected.
+No additional transaction created.
+Wallet remains unchanged.
+Why it matters:
+Prevents replay attacks and transaction tampering.
 Business Logic & Money
-TC-21: Insufficient wallet balance
+
+TC-21: Insufficient Wallet Balance
 Category: Business Logic
 Priority: P0
-Expected Result: Request rejected, no deduction occurs.
-Why it matters: Prevents negative balances.
-TC-22: Sender appears in winners list
+Preconditions:
+Wallet balance less than required amount.
+Steps:
+Submit valid request.
+Expected Result:
+Transaction rejected.
+Status code returned according to API design.
+No coins deducted.
+No winners rewarded.
+Why it matters:
+Prevents overspending and negative balances.
+
+TC-22: Sender Appears in Winners List
 Category: Business Logic
 Priority: P1
-Expected Result: Sender should not be selected.
-Why it matters: Prevents unfair rewards.
-TC-23: Duplicate winner selection
+Preconditions:
+Sender is present in room audience.
+Steps:
+Send gift request multiple times.
+Observe winner selection.
+Expected Result:
+Sender should not be selected as a winner (assuming intended business rule).
+Why it matters:
+Prevents users from rewarding themselves unfairly.
+
+TC-23: Duplicate Winner Selection
 Category: Business Logic
 Priority: P1
-Expected Result: No duplicate user IDs in winners list.
-Why it matters: Prevents incorrect reward distribution.
-TC-24: Gift cost calculation accuracy
+Preconditions:
+Room contains enough viewers.
+Steps:
+Send gift request with multiple winners.
+Expected Result:
+Every winner appears only once.
+No duplicate user IDs in winners array.
+Why it matters:
+Prevents duplicate reward distribution.
+
+TC-24: Correct Coin Deduction Calculation
 Category: Business Logic
 Priority: P0
-Expected Result: coins_charged equals quantity × gift.coin_price.
-Why it matters: Prevents financial calculation errors.
+Preconditions:
+Gift price = 500 coins.
+Quantity = 10.
+Balance = 10000.
+Steps:
+Send request.
+Expected Result:
+coins_charged = 5000.
+remaining_balance = 5000.
+Database balance matches response value.
+Why it matters:
+Verifies financial accuracy.
 Side Effects
-TC-25: Verify WebSocket event is broadcast after successful gift sending
+
+TC-25: Verify gift.sent WebSocket Event Broadcast
 Category: Side Effects
 Priority: P1
-Expected Result: gift.sent event received by room viewers.
-Why it matters: Ensures real-time updates.
-TC-26: Verify database transaction rollback on internal failure
+Preconditions:
+Room contains active listeners.
+Steps:
+Send successful gift request.
+Monitor room channel.
+Expected Result:
+gift.sent event is broadcast exactly once.
+Event payload contains correct transaction information.
+Why it matters:
+Ensures real-time room updates work correctly.
+
+TC-26: Verify Database Rollback on Internal Failure
 Category: Side Effects
 Priority: P0
-Expected Result: No partial updates remain in database.
-Why it matters: Prevents inconsistent financial records.
+Preconditions:
+Ability to simulate internal exception after wallet deduction.
+Steps:
+Trigger controlled server failure during processing.
+Expected Result:
+Entire transaction rolls back.
+Wallet balance restored.
+No winners credited.
+No partial database updates remain.
+Why it matters:
+Prevents money loss and inconsistent data.
 Negative / Security
-TC-27: Attempt SQL injection in room_id field
+
+TC-27: SQL Injection Attempt in room_id
 Category: Security
 Priority: P1
-Expected Result: Request rejected safely.
-Why it matters: Protects backend from injection attacks.
-TC-28: Attempt JSON type manipulation
+Steps:
+Send room_id = "1 OR 1=1".
+Expected Result:
+Request rejected.
+Validation error returned.
+No database impact.
+Why it matters:
+Verifies protection against injection attacks.
+
+TC-28: JSON Type Manipulation Attack
 Category: Security
 Priority: P1
-Expected Result: Validation error returned.
-Why it matters: Detects weak input validation.
-TC-29: Verify rate limit enforcement (30 requests/minute)
+Steps:
+
+Send room_id as object instead of integer:
+
+{
+  "room_id": {"value":123}
+}
+Expected Result:
+Validation fails.
+Request rejected.
+Why it matters:
+Detects weak type validation vulnerabilities.
+
+TC-29: Verify Rate Limiting (30 Requests Per Minute)
 Category: Security
 Priority: P0
-Expected Result: Excess requests return 429 Too Many Requests.
-Why it matters: Prevents abuse and excessive wallet operations.
+Preconditions:
+Valid authenticated user.
+Steps:
+Send more than 30 requests within one minute.
+Expected Result:
+Additional requests receive status code 429.
+No unexpected transactions are processed.
+Why it matters:
+Prevents abuse and protects backend resources.
+...................................................
+Ambiguities / Clarification Requests
+
+1. Can the sender be selected as a winner?
+
+The specification does not clearly state whether the sender can participate in winner selection.
+
+2. What should happen when the same idempotency_key is replayed?
+
+Should the API return the original response, return 409 Conflict, or another status code?
+
+3. Are winners selected from a live audience or from an audience snapshot?
+
+Behavior is unclear if users join or leave while processing is running.
+
+4. Can a user appear more than once in the winners list?
+
+The business rule is not explicitly defined.
+
+5. What happens if WebSocket broadcasting fails after the database transaction succeeds?
+
+Should the transaction remain successful or be rolled back?
+
+6. What exact status code should be returned for insufficient balance?
+
+The specification mentions validation but does not define the response code.
+
+7. How long should idempotency records be retained after the 24-hour period expires?
+
+Cleanup and reuse behavior are not specified.
