@@ -1,0 +1,53 @@
+
+{
+	"id": "a2e484e4-935c-4978-b9d6-795690448bc0",
+	"name": "QA Exercise 2",
+	"values": [
+		{
+			"key": "base_url",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "email",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "password",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "room_id",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		},
+		{
+			"key": "gift_id",
+			"value": "",
+			"type": "default",
+			"enabled": true
+		}
+	],
+	"color": 120,
+	"_postman_variable_scope": "environment",
+	"_postman_exported_at": "2026-06-03T10:09:42.963Z",
+	"_postman_exported_using": "Postman/12.13.4"
+}
